@@ -1,4 +1,8 @@
 import tkinter as tk
+import sql_commands
+import secrets
+
+STAGES = secrets.STAGES
 
 class Root(tk.Tk):
 
@@ -23,9 +27,22 @@ class Main(tk.Frame):
         tk.Frame.__init__(self, root, *args, **kwargs)
         self.pack()
 
+        self.stage = Stage(self)
         self.message = Message(self)
-        self.frame = Workspace(self)
-              
+        self.frame = Workspace(self)        
+
+class Stage(tk.Frame):
+    def __init__(self, root, *args, **kwargs):
+        self._root = root
+        tk.Frame.__init__(self, root, *args, **kwargs)
+        self.pack(side = tk.TOP)
+
+        clicked = tk.StringVar()
+        clicked.set(STAGES[0])
+        drop = tk.OptionMenu(root, clicked, *STAGES)
+        drop.pack()
+
+
 class Message(tk.Frame):
     def __init__(self, root, *args, **kwargs):
         self._root = root
@@ -93,8 +110,16 @@ class EmployeeId(tk.Frame):
     
     def employeeIdButtonPress(self):
         employeeid = self.employeeIdEntry.get()
-        self._root.employeeId = employeeid
-        self._root.show_orderId()
+        if not employeeid.isnumeric():
+            self._root._root.message.error("Error, employeeId have to be numeric")
+            self._root.show_employeeId()
+        elif sql_commands.get_employee_name_from_employeeId(employeeid)==None:
+            self._root._root.message.error("Error, no employeeId in database")
+            self._root.show_employeeId()
+        else:
+            self._root.employeeId = employeeid
+            self._root.show_orderId()
+            self._root._root.message.done("")
 
 class OrderId(tk.Frame):
 
@@ -104,7 +129,7 @@ class OrderId(tk.Frame):
         tk.Frame.__init__(self, root, *args, **kwargs)
         self.pack(fill="both")
 
-        self.orderIdLabel = tk.Label(self, text="Order Id")
+        self.orderIdLabel = tk.Label(self, text="Order Bar Code: ")
         self.orderIdLabel.pack(side=tk.LEFT)
 
         self.orderIdEntry = tk.Entry(self)
@@ -114,9 +139,16 @@ class OrderId(tk.Frame):
         self.orderIdButton.pack(side=tk.LEFT)
     
     def orderIdButtonPress(self):
-        orderid = self.orderIdEntry.get()
-        self._root.orderid = orderid
-        self._root.show_affirmation()
+        barCode = self.orderIdEntry.get()
+        if not barCode.isnumeric():
+            self._root._root.message.error("Error, Bar Code have to be numeric")
+            self._root.show_orderId()
+        elif len(orderids:=sql_commands.get_orderIds(barCode))==0:
+            self._root._root.message.error("Order not in database")
+        else:
+            self._root.orderId = orderids
+            self._root.show_affirmation()
+            self._root._root.message.done("")
 
 class Affirmation(tk.Frame):
 
@@ -124,9 +156,13 @@ class Affirmation(tk.Frame):
         self._root = root
         tk.Frame.__init__(self, root, *args, **kwargs)
         self.pack(fill="both")
-
-        self.employeeIdLabel = tk.Label(self, text="EmployeeId: "+self._root.employeeId)
+        employeeNameTable = sql_commands.get_employee_name_from_employeeId(self._root.employeeId)
+        name0 = "".join(employeeNameTable[0].split())
+        name1 = "".join(employeeNameTable[1].split())
+        self.employeeIdLabel = tk.Label(self, text="Employee Id: "+name0+" "+ name1)
         self.employeeIdLabel.pack(side=tk.TOP)
+        self.orderIdLabel = tk.Label(self, text="Order Id: "+str(self._root.orderId))
+        self.orderIdLabel.pack(side=tk.TOP)
 
         self.orderIdButton = tk.Button(self, text="Yes", command=self.agreed)
         self.orderIdButton.pack(side=tk.LEFT)
