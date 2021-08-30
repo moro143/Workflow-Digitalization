@@ -37,9 +37,9 @@ class Stage(tk.Frame):
         tk.Frame.__init__(self, root, *args, **kwargs)
         self.pack(side = tk.TOP)
 
-        clicked = tk.StringVar()
-        clicked.set(STAGES[0])
-        drop = tk.OptionMenu(root, clicked, *STAGES)
+        self.clicked = tk.StringVar()
+        self.clicked.set(STAGES[0])
+        drop = tk.OptionMenu(root, self.clicked, *STAGES)
         drop.pack()
 
 
@@ -144,7 +144,11 @@ class OrderId(tk.Frame):
             self._root._root.message.error("Error, Bar Code have to be numeric")
             self._root.show_orderId()
         elif len(orderids:=sql_commands.get_orderIds(barCode))==0:
-            self._root._root.message.error("Order not in database")
+            self._root._root.message.error("Error, Order not in database")
+            self._root.show_orderId()
+        elif sql_commands.order_already_done_on_stage(orderids[0], self._root._root.stage.clicked.get()):
+            self._root._root.message.error("Error, Order already done on this stage")
+            self._root.show_orderId()
         else:
             self._root.orderId = orderids
             self._root.show_affirmation()
@@ -164,16 +168,25 @@ class Affirmation(tk.Frame):
         self.orderIdLabel = tk.Label(self, text="Order Id: "+str(self._root.orderId))
         self.orderIdLabel.pack(side=tk.TOP)
 
-        self.orderIdButton = tk.Button(self, text="Yes", command=self.agreed)
+        if sql_commands.order_alreadey_started_on_stage(str(self._root.orderId[0]), self._root._root.stage.clicked.get()):
+            self.orderIdButton = tk.Button(self, text="End the order", command=self.endOrder)
+        else:
+            self.orderIdButton = tk.Button(self, text="Start the order", command=self.startOrder)
         self.orderIdButton.pack(side=tk.LEFT)
-        self.orderIdButton = tk.Button(self, text="No", command=self.denied)
+        self.orderIdButton = tk.Button(self, text="Cancel", command=self.denied)
         self.orderIdButton.pack(side=tk.LEFT)
     
     def denied(self):
         self._root._root.message.error("Rejected by user")
         self._root.show_employeeId()
     
-    def agreed(self):
+    def endOrder(self):
+        sql_commands.end_order(self._root.orderId, self._root._root.stage.clicked.get(), self._root.employeeId)
+        self._root._root.message.done("Done")
+        self._root.show_employeeId()
+    
+    def startOrder(self):
+        sql_commands.start_order(self._root.orderId, self._root._root.stage.clicked.get(), self._root.employeeId)
         self._root._root.message.done("Done")
         self._root.show_employeeId()
 
